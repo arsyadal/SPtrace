@@ -14,43 +14,44 @@ pub fn detect_risks_with_config(
     config: &crate::model::Config,
 ) -> Vec<RiskFinding> {
     let body = extract_body_sql(sql);
+    let keyword_body = strip_string_literals(&body);
     let mut findings = Vec::new();
 
-    if let Some(finding) = rule_select_star(&body) {
+    if let Some(finding) = rule_select_star(&keyword_body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_nolock_used(&body) {
+    if let Some(finding) = rule_nolock_used(&keyword_body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_dynamic_sql(&body) {
+    if let Some(finding) = rule_dynamic_sql(&keyword_body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_linked_server(&body) {
+    if let Some(finding) = rule_linked_server(&keyword_body) {
         findings.push(finding);
     }
 
-    findings.extend(rule_update_without_where(&body));
-    findings.extend(rule_delete_without_where(&body));
+    findings.extend(rule_update_without_where(&keyword_body));
+    findings.extend(rule_delete_without_where(&keyword_body));
 
-    if let Some(finding) = rule_insert_select_no_distinct(&body) {
+    if let Some(finding) = rule_insert_select_no_distinct(&keyword_body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_multi_join_aggregation(&body) {
+    if let Some(finding) = rule_multi_join_aggregation(&keyword_body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_cursor_used(&body) {
+    if let Some(finding) = rule_cursor_used(&keyword_body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_transaction_without_trycatch(&body) {
+    if let Some(finding) = rule_transaction_without_trycatch(&keyword_body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_trycatch_without_rollback(&body) {
+    if let Some(finding) = rule_trycatch_without_rollback(&keyword_body) {
         findings.push(finding);
     }
     if let Some(finding) = rule_hardcoded_date(&body) {
         findings.push(finding);
     }
-    if let Some(finding) = rule_status_magic_number(&body) {
+    if let Some(finding) = rule_status_magic_number(&keyword_body) {
         findings.push(finding);
     }
     if let Some(finding) = rule_temp_table_chain(trace) {
@@ -77,6 +78,38 @@ pub fn detect_risks_with_config(
     }
 
     dedupe_and_sort(processed_findings)
+}
+
+fn strip_string_literals(sql: &str) -> String {
+    let mut out = String::with_capacity(sql.len());
+    let mut in_single = false;
+    let mut chars = sql.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\'' {
+            out.push(' ');
+            if in_single {
+                if matches!(chars.peek(), Some('\'')) {
+                    out.push(' ');
+                    chars.next();
+                } else {
+                    in_single = false;
+                }
+            } else {
+                in_single = true;
+            }
+            continue;
+        }
+
+        if in_single {
+            out.push(if c == '\n' { '\n' } else { ' ' });
+            continue;
+        }
+
+        out.push(c);
+    }
+
+    out
 }
 
 fn dedupe_and_sort(findings: Vec<RiskFinding>) -> Vec<RiskFinding> {
@@ -435,10 +468,24 @@ mod tests {
     }
 
     #[test]
+    fn detects_update_without_where_even_when_string_mentions_where() {
+        let sql = "UPDATE TB_A SET NOTE = 'WHERE';";
+        let risks = detect_risks(sql, &empty_trace());
+        assert!(risks.iter().any(|r| r.rule_id == "update_without_where"));
+    }
+
+    #[test]
     fn detects_delete_without_where() {
         let sql = "DELETE FROM TB_A;";
         let risks = detect_risks(sql, &empty_trace());
         assert!(risks.iter().any(|r| r.rule_id == "delete_without_where"));
+    }
+
+    #[test]
+    fn does_not_miss_delete_with_where_literal() {
+        let sql = "DELETE FROM TB_A WHERE NOTE = 'WHERE';";
+        let risks = detect_risks(sql, &empty_trace());
+        assert!(!risks.iter().any(|r| r.rule_id == "delete_without_where"));
     }
 
     #[test]
