@@ -2,7 +2,7 @@
 
 Understand legacy Stored Procedures without reading 1,000 lines of SQL.
 
-SPTrace is an offline CLI static analyzer for SQL Stored Procedures. It reads `.sql` files, extracts dependencies, detects risky patterns, and generates readable reports for debugging, onboarding, and RCA.
+SPTrace is an offline CLI static analyzer for **Microsoft SQL Server (T-SQL)** Stored Procedures. It reads `.sql` files, extracts dependencies, detects risky patterns, and generates readable reports for debugging, onboarding, and RCA.
 
 ## Why
 
@@ -113,6 +113,7 @@ Implemented in v0.1:
 
 ## Limitations
 
+- Designed specifically for **Microsoft SQL Server (T-SQL)**. Other dialects (e.g., PL/SQL, PL/pgSQL) are not supported.
 - Regex/token-based analysis only
 - Dynamic SQL dependency detection is incomplete
 - T-SQL edge cases may produce false positives
