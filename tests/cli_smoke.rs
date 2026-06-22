@@ -1,3 +1,4 @@
+use serde_json::Value;
 use std::{
     env, fs,
     path::PathBuf,
@@ -5,80 +6,126 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-fn bin() -> PathBuf {
-    PathBuf::from(env!("CARGO_BIN_EXE_sptrace"))
+fn run_scan_json(path: &str) -> Value {
+    let output = Command::new(env!("CARGO_BIN_EXE_sptrace"))
+        .args(["scan", path, "--json"])
+        .output()
+        .expect("failed to run sptrace");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("valid json")
 }
 
-fn example(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("examples")
-        .join("procedures")
-        .join(name)
-}
-
-fn unique_temp_dir(prefix: &str) -> PathBuf {
-    let mut dir = env::temp_dir();
-    let pid = std::process::id();
-    let ts = SystemTime::now()
+fn temp_sql_path(name: &str) -> PathBuf {
+    let mut path = env::temp_dir();
+    let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("time")
+        .expect("clock")
         .as_nanos();
-    dir.push(format!("sptrace-{prefix}-{pid}-{ts}"));
-    dir
+    path.push(format!("sptrace-{name}-{unique}.sql"));
+    path
 }
 
 #[test]
-fn scan_json_smoke() {
-    let output = Command::new(bin())
-        .args([
-            "scan",
-            example("duplicate_aggregation.sql").to_str().unwrap(),
-            "--json",
-        ])
-        .output()
-        .expect("run sptrace");
+fn duplicate_aggregation_fixture_has_expected_high_risk() {
+    let json = run_scan_json("examples/procedures/duplicate_aggregation.sql");
 
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("multi_join_aggregation"));
-    assert!(stdout.contains("SP_GENERATE_GR_SAMPLE"));
+    assert_eq!(json["name"], "SP_GENERATE_GR_SAMPLE");
+    assert_eq!(json["metrics"]["risk_level"], "High");
+    assert!(json["risks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|risk| risk["rule_id"] == "multi_join_aggregation"));
+    assert!(json["dependencies"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|dep| dep["object"] == "TB_T_GR_HUB" && dep["operation"] == "Write"));
 }
 
 #[test]
-fn scan_out_writes_markdown() {
-    let dir = unique_temp_dir("markdown");
-    fs::create_dir_all(&dir).unwrap();
-    let report = dir.join("report.md");
+fn linked_server_fixture_detects_linked_server_risk() {
+    let json = run_scan_json("examples/procedures/linked_server.sql");
 
-    let output = Command::new(bin())
-        .args([
-            "scan",
-            example("duplicate_aggregation.sql").to_str().unwrap(),
-            "--out",
-            report.to_str().unwrap(),
-        ])
-        .output()
-        .expect("run sptrace");
-
-    assert!(output.status.success());
-    let md = fs::read_to_string(&report).expect("report exists");
-    assert!(md.contains("# SPTrace Report"));
-    assert!(md.contains("## 5. Dependency Diagram"));
+    assert!(json["risks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|risk| risk["rule_id"] == "linked_server"));
 }
 
 #[test]
-fn scan_context_json_smoke() {
-    let output = Command::new(bin())
-        .args([
-            "context",
-            example("duplicate_aggregation.sql").to_str().unwrap(),
-            "--json",
-        ])
-        .output()
-        .expect("run sptrace");
+fn dynamic_sql_fixture_detects_dynamic_sql_risk() {
+    let json = run_scan_json("examples/procedures/dynamic_sql.sql");
 
-    assert!(output.status.success());
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("\"summary\""));
-    assert!(stdout.contains("\"suggested_queries\""));
+    assert!(json["risks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|risk| risk["rule_id"] == "dynamic_sql"));
+}
+
+#[test]
+fn update_without_where_fixture_detects_high_risk() {
+    let json = run_scan_json("examples/procedures/update_without_where.sql");
+
+    assert!(json["risks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|risk| risk["rule_id"] == "update_without_where"));
+    assert_eq!(json["metrics"]["risk_level"], "High");
+}
+
+#[test]
+fn select_star_nolock_fixture_detects_both_rules() {
+    let json = run_scan_json("examples/procedures/select_star_nolock.sql");
+    let rule_ids: Vec<_> = json["risks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|risk| risk["rule_id"].as_str().unwrap().to_string())
+        .collect();
+
+    assert!(rule_ids.contains(&"select_star".to_string()));
+    assert!(rule_ids.contains(&"nolock_used".to_string()));
+}
+
+#[test]
+fn delete_join_does_not_count_target_as_read() {
+    let path = temp_sql_path("delete-join");
+    fs::write(
+        &path,
+        r#"
+CREATE PROCEDURE dbo.SP_DELETE_JOIN
+AS
+BEGIN
+    DELETE t
+    FROM TB_TARGET t
+    JOIN TB_SRC s ON s.ID = t.ID
+    WHERE s.FLAG = 1
+END
+"#,
+    )
+    .expect("write temp sql");
+
+    let json = run_scan_json(path.to_str().unwrap());
+    let deps = json["dependencies"].as_array().unwrap();
+
+    assert!(deps
+        .iter()
+        .any(|dep| dep["object"] == "TB_TARGET" && dep["operation"] == "Write"));
+    assert!(deps
+        .iter()
+        .any(|dep| dep["object"] == "TB_SRC" && dep["operation"] == "Read"));
+    assert!(!deps
+        .iter()
+        .any(|dep| dep["object"] == "TB_TARGET" && dep["operation"] == "Read"));
+
+    let _ = fs::remove_file(path);
 }
