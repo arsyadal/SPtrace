@@ -49,51 +49,37 @@ pub fn extract_dependencies(sql: &str) -> Vec<Dependency> {
 
     let mut candidates: Vec<(usize, Dependency)> = Vec::new();
 
-    let read_patterns = [
-        (r"(?is)\bFROM\s+([A-Za-z0-9_#@\[\]\.]+)", "FROM"),
-        (r"(?is)\bJOIN\s+([A-Za-z0-9_#@\[\]\.]+)", "JOIN"),
-        (r"(?is)\bUSING\s+([A-Za-z0-9_#@\[\]\.]+)", "USING"),
-    ];
+    for stmt in split_statements(&body) {
+        let stmt = stmt.trim();
+        if stmt.is_empty() {
+            continue;
+        }
 
-    for (pattern, source) in read_patterns {
-        candidates.extend(collect_dependencies(
-            &body,
-            pattern,
-            Operation::Read,
-            source,
-        ));
+        let write_deps = collect_write_dependencies(stmt);
+        let write_targets: HashSet<String> = write_deps
+            .iter()
+            .map(|(_, dep)| dep.object.clone())
+            .collect();
+        candidates.extend(write_deps);
+
+        let read_patterns = [
+            (r"(?is)\bFROM\s+([A-Za-z0-9_#@\[\]\.]+)", "FROM"),
+            (r"(?is)\bJOIN\s+([A-Za-z0-9_#@\[\]\.]+)", "JOIN"),
+            (r"(?is)\bUSING\s+([A-Za-z0-9_#@\[\]\.]+)", "USING"),
+        ];
+
+        for (pattern, source) in read_patterns {
+            candidates.extend(collect_dependencies(
+                stmt,
+                pattern,
+                Operation::Read,
+                source,
+                Some(&write_targets),
+            ));
+        }
+
+        candidates.extend(collect_exec_dependencies(stmt));
     }
-
-    let write_patterns = [
-        (
-            r"(?is)\bSELECT\s+INTO\s+([A-Za-z0-9_#@\[\]\.]+)",
-            "SELECT INTO",
-        ),
-        (
-            r"(?is)\bINSERT\s+INTO\s+([A-Za-z0-9_#@\[\]\.]+)",
-            "INSERT INTO",
-        ),
-        (r"(?is)\bUPDATE\s+([A-Za-z0-9_#@\[\]\.]+)", "UPDATE"),
-        (
-            r"(?is)\bDELETE\s+FROM\s+([A-Za-z0-9_#@\[\]\.]+)",
-            "DELETE FROM",
-        ),
-        (
-            r"(?is)\bMERGE\s+INTO\s+([A-Za-z0-9_#@\[\]\.]+)",
-            "MERGE INTO",
-        ),
-    ];
-
-    for (pattern, source) in write_patterns {
-        candidates.extend(collect_dependencies(
-            &body,
-            pattern,
-            Operation::Write,
-            source,
-        ));
-    }
-
-    candidates.extend(collect_exec_dependencies(&body));
 
     candidates.sort_by_key(|(pos, _)| *pos);
 
@@ -405,6 +391,7 @@ fn collect_dependencies(
     pattern: &str,
     operation: Operation,
     source: &str,
+    skip_objects: Option<&HashSet<String>>,
 ) -> Vec<(usize, Dependency)> {
     let re = Regex::new(pattern).unwrap();
     re.captures_iter(body)
@@ -421,6 +408,12 @@ fn collect_dependencies(
             if object.is_empty() {
                 return None;
             }
+            if skip_objects
+                .map(|objects| matches!(source, "FROM") && objects.contains(&object))
+                .unwrap_or(false)
+            {
+                return None;
+            }
             Some((
                 m.start(),
                 Dependency {
@@ -431,6 +424,40 @@ fn collect_dependencies(
             ))
         })
         .collect()
+}
+
+fn collect_write_dependencies(body: &str) -> Vec<(usize, Dependency)> {
+    let write_patterns = [
+        (
+            r"(?is)\bSELECT\s+INTO\s+([A-Za-z0-9_#@\[\]\.]+)",
+            "SELECT INTO",
+        ),
+        (
+            r"(?is)\bINSERT\s+INTO\s+([A-Za-z0-9_#@\[\]\.]+)",
+            "INSERT INTO",
+        ),
+        (r"(?is)\bUPDATE\s+([A-Za-z0-9_#@\[\]\.]+)", "UPDATE"),
+        (
+            r"(?is)\bDELETE(?:\s+[A-Za-z0-9_#@\[\]\.]+)?\s+FROM\s+([A-Za-z0-9_#@\[\]\.]+)",
+            "DELETE FROM",
+        ),
+        (
+            r"(?is)\bMERGE\s+INTO\s+([A-Za-z0-9_#@\[\]\.]+)",
+            "MERGE INTO",
+        ),
+    ];
+
+    let mut candidates = Vec::new();
+    for (pattern, source) in write_patterns {
+        candidates.extend(collect_dependencies(
+            body,
+            pattern,
+            Operation::Write,
+            source,
+            None,
+        ));
+    }
+    candidates
 }
 
 fn collect_exec_dependencies(body: &str) -> Vec<(usize, Dependency)> {
@@ -632,6 +659,42 @@ mod tests {
         assert!(objects.contains(&("TB_R_F", "WRITE".to_string(), "DELETE FROM")));
         assert!(objects.contains(&("dbo.SP_NEXT", "EXECUTE".to_string(), "EXEC")));
         assert!(!objects.iter().any(|(_, _, source)| *source == "AS"));
+    }
+
+    #[test]
+    fn does_not_count_delete_target_as_read() {
+        let sql = r#"
+            DELETE FROM TB_B WHERE NOTE = 'WHERE';
+        "#;
+
+        let deps = extract_dependencies(sql);
+        assert!(deps
+            .iter()
+            .any(|dep| dep.object == "TB_B" && dep.operation == Operation::Write));
+        assert!(!deps
+            .iter()
+            .any(|dep| dep.object == "TB_B" && dep.operation == Operation::Read));
+    }
+
+    #[test]
+    fn detects_delete_join_target_and_sources() {
+        let sql = r#"
+            DELETE t
+            FROM TB_TARGET t
+            JOIN TB_SRC s ON s.ID = t.ID
+            WHERE s.FLAG = 1
+        "#;
+
+        let deps = extract_dependencies(sql);
+        assert!(deps
+            .iter()
+            .any(|dep| dep.object == "TB_TARGET" && dep.operation == Operation::Write));
+        assert!(deps
+            .iter()
+            .any(|dep| dep.object == "TB_SRC" && dep.operation == Operation::Read));
+        assert!(!deps
+            .iter()
+            .any(|dep| dep.object == "TB_TARGET" && dep.operation == Operation::Read));
     }
 
     #[test]

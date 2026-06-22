@@ -1,0 +1,74 @@
+# SPTrace Report: SP_GENERATE_GR_SAMPLE
+
+## 1. Overview
+- Procedure: SP_GENERATE_GR_SAMPLE
+- Dialect: T-SQL
+- Statements: 1
+- Risk Level: High
+- Read Tables: 3
+- Written Tables: 1
+- Temp Tables: 0
+- Risk Findings: 1
+
+## 2. Parameters
+| Parameter | Type | Default |
+|---|---|---|
+| @ORDER_NO | VARCHAR(20) | Required |
+
+## 3. Dependencies
+
+### Tables Read
+- TB_R_DAILY_ORDER_PART
+- TB_R_DELIVERY_CTL_H
+- TB_R_DELIVERY_CTL_D
+
+### Tables Written
+- TB_T_GR_HUB
+
+### Procedures Executed
+- None
+
+### External Dependencies
+- None
+
+## 4. Temp Tables
+- None
+
+## 5. Dependency Diagram
+
+```mermaid
+flowchart LR
+    N_SP_GENERATE_GR_SAMPLE["SP_GENERATE_GR_SAMPLE"]
+    N_TB_T_GR_HUB["TB_T_GR_HUB"]
+    N_SP_GENERATE_GR_SAMPLE --> N_TB_T_GR_HUB
+    N_TB_R_DAILY_ORDER_PART["TB_R_DAILY_ORDER_PART"]
+    N_TB_R_DAILY_ORDER_PART --> N_SP_GENERATE_GR_SAMPLE
+    N_TB_R_DELIVERY_CTL_H["TB_R_DELIVERY_CTL_H"]
+    N_TB_R_DELIVERY_CTL_H --> N_SP_GENERATE_GR_SAMPLE
+    N_TB_R_DELIVERY_CTL_D["TB_R_DELIVERY_CTL_D"]
+    N_TB_R_DELIVERY_CTL_D --> N_SP_GENERATE_GR_SAMPLE
+```
+
+## 6. Execution Flow
+1. Reads from `TB_R_DAILY_ORDER_PART`, `TB_R_DELIVERY_CTL_H`, `TB_R_DELIVERY_CTL_D`
+2. Writes to `TB_T_GR_HUB`
+
+## 7. Risk Findings
+
+### High: multi_join_aggregation
+SUM/COUNT used with JOIN and GROUP BY. Aggregated values may be duplicated if join keys are not unique.
+
+Suggestion: Check join key uniqueness, pre-aggregate detail rows before joins, and verify whether additional keys such as MANIFEST_NO, ORDER_NO, or PART_NO are required.
+
+## 8. Questions to Verify
+- Is PART_NO unique per ORDER_NO?
+- Should MANIFEST_NO be part of the join key?
+- Should quantity be pre-aggregated before joining master data?
+
+## 9. Suggested Next Queries
+```sql
+SELECT ORDER_NO, PART_NO, COUNT(*) AS CNT
+FROM TB_R_DAILY_ORDER_PART
+GROUP BY ORDER_NO, PART_NO
+HAVING COUNT(*) > 1;
+```

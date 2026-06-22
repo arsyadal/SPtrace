@@ -1,0 +1,59 @@
+{
+  "name": "SP_GENERATE_GR_SAMPLE",
+  "parameters": [
+    {
+      "name": "@ORDER_NO",
+      "data_type": "VARCHAR(20)",
+      "default_value": null
+    }
+  ],
+  "dependencies": [
+    {
+      "object": "TB_T_GR_HUB",
+      "operation": "Write",
+      "source": "INSERT INTO"
+    },
+    {
+      "object": "TB_R_DAILY_ORDER_PART",
+      "operation": "Read",
+      "source": "FROM"
+    },
+    {
+      "object": "TB_R_DELIVERY_CTL_H",
+      "operation": "Read",
+      "source": "JOIN"
+    },
+    {
+      "object": "TB_R_DELIVERY_CTL_D",
+      "operation": "Read",
+      "source": "JOIN"
+    }
+  ],
+  "temp_tables": [],
+  "risks": [
+    {
+      "rule_id": "multi_join_aggregation",
+      "severity": "High",
+      "message": "SUM/COUNT used with JOIN and GROUP BY. Aggregated values may be duplicated if join keys are not unique.",
+      "suggestion": "Check join key uniqueness, pre-aggregate detail rows before joins, and verify whether additional keys such as MANIFEST_NO, ORDER_NO, or PART_NO are required."
+    }
+  ],
+  "statements": [
+    {
+      "index": 1,
+      "kind": "Insert",
+      "target": "TB_T_GR_HUB",
+      "sources": [
+        "TB_R_DAILY_ORDER_PART",
+        "TB_R_DELIVERY_CTL_H",
+        "TB_R_DELIVERY_CTL_D"
+      ]
+    }
+  ],
+  "metrics": {
+    "statement_count": 1,
+    "read_count": 3,
+    "write_count": 1,
+    "risk_level": "High"
+  }
+}
