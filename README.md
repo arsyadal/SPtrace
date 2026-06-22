@@ -31,7 +31,7 @@ SPTrace helps you answer:
 - Folder scan + dependency index
 - Risk detection rules
 
-## Safety
+## Security / Privacy
 
 - No database connection
 - No credentials
@@ -59,7 +59,7 @@ cargo run -- diff examples/procedures/duplicate_aggregation.sql examples/procedu
 cargo run -- diff examples/procedures/duplicate_aggregation.sql examples/procedures/update_without_where.sql --json
 ```
 
-## Example
+## Demo
 
 Input:
 
