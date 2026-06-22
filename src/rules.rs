@@ -8,7 +8,11 @@ pub fn detect_risks(sql: &str, trace: &ProcedureTrace) -> Vec<RiskFinding> {
     detect_risks_with_config(sql, trace, &crate::model::Config::default())
 }
 
-pub fn detect_risks_with_config(sql: &str, trace: &ProcedureTrace, config: &crate::model::Config) -> Vec<RiskFinding> {
+pub fn detect_risks_with_config(
+    sql: &str,
+    trace: &ProcedureTrace,
+    config: &crate::model::Config,
+) -> Vec<RiskFinding> {
     let body = extract_body_sql(sql);
     let mut findings = Vec::new();
 
@@ -507,15 +511,33 @@ mod tests {
             SELECT * FROM TB_A WITH (NOLOCK);
         "#;
         let trace_default = crate::analyzer::analyze_sql(sql).unwrap();
-        assert!(trace_default.risks.iter().any(|r| r.rule_id == "select_star" && r.severity == Severity::Low));
-        assert!(trace_default.risks.iter().any(|r| r.rule_id == "nolock_used" && r.severity == Severity::Medium));
+        assert!(trace_default
+            .risks
+            .iter()
+            .any(|r| r.rule_id == "select_star" && r.severity == Severity::Low));
+        assert!(trace_default
+            .risks
+            .iter()
+            .any(|r| r.rule_id == "nolock_used" && r.severity == Severity::Medium));
 
         let mut config = crate::model::Config::default();
-        config.rules.insert("select_star".to_string(), crate::model::RuleConfig::Bool(false));
-        config.rules.insert("nolock_used".to_string(), crate::model::RuleConfig::Severity(Severity::High));
+        config.rules.insert(
+            "select_star".to_string(),
+            crate::model::RuleConfig::Bool(false),
+        );
+        config.rules.insert(
+            "nolock_used".to_string(),
+            crate::model::RuleConfig::Severity(Severity::High),
+        );
 
         let trace_custom = crate::analyzer::analyze_sql_with_config(sql, &config).unwrap();
-        assert!(!trace_custom.risks.iter().any(|r| r.rule_id == "select_star"));
-        assert!(trace_custom.risks.iter().any(|r| r.rule_id == "nolock_used" && r.severity == Severity::High));
+        assert!(!trace_custom
+            .risks
+            .iter()
+            .any(|r| r.rule_id == "select_star"));
+        assert!(trace_custom
+            .risks
+            .iter()
+            .any(|r| r.rule_id == "nolock_used" && r.severity == Severity::High));
     }
 }

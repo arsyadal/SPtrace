@@ -48,9 +48,7 @@ pub fn render_terminal(trace: &ProcedureTrace) -> String {
             };
             lines.push(format!(
                 "[{}] {} - {}",
-                colored_severity,
-                risk.rule_id,
-                risk.message
+                colored_severity, risk.rule_id, risk.message
             ));
         }
     }

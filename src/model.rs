@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Serialize, Clone)]
@@ -177,4 +177,3 @@ pub enum RuleConfig {
     Bool(bool),
     Severity(Severity),
 }
-

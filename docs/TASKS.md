@@ -5,7 +5,9 @@ Gunakan file ini sebagai checklist eksekusi. Idealnya satu task = satu prompt ke
 ## Status Legend
 
 - [ ] Not started
-- [~] In progress
+
+- \[\~\] In progress
+
 - [x] Done
 
 ## Phase 0 — Project Setup
@@ -42,7 +44,9 @@ Files:
 Checklist:
 
 - [ ] Cargo project created
+
 - [ ] Dependencies added
+
 - [ ] `cargo check` passes
 
 ## Phase 1 — CLI Skeleton
@@ -76,8 +80,11 @@ Files:
 Checklist:
 
 - [ ] CLI structs implemented
+
 - [ ] `scan` command accepted
+
 - [ ] `--out` accepted
+
 - [ ] `--json` accepted
 
 ## Phase 2 — Data Model
@@ -106,11 +113,17 @@ Files:
 Checklist:
 
 - [ ] ProcedureTrace added
+
 - [ ] Parameter added
+
 - [ ] Dependency added
+
 - [ ] RiskFinding added
+
 - [ ] Severity added
+
 - [ ] StatementSummary added
+
 - [ ] `cargo check` passes
 
 ## Phase 3 — Normalizer
@@ -134,7 +147,7 @@ Acceptance tests:
 - `-- comment` removed.
 - `/* block */` removed.
 - `[dbo].[Table]` becomes `dbo.Table`.
-- `SELECT  1\nFROM X` normalized to one-space style.
+- `SELECT 1\nFROM X` normalized to one-space style.
 
 Files:
 
@@ -143,10 +156,15 @@ Files:
 Checklist:
 
 - [ ] Line comments stripped
+
 - [ ] Block comments stripped
+
 - [ ] Whitespace normalized
+
 - [ ] Brackets removed from identifiers
+
 - [ ] Statements split approximately
+
 - [ ] Unit tests added
 
 ## Phase 4 — Parser
@@ -192,9 +210,13 @@ dbo.SP_TEST
 Checklist:
 
 - [ ] CREATE PROCEDURE supported
+
 - [ ] ALTER PROCEDURE supported
+
 - [ ] CREATE PROC supported
+
 - [ ] ALTER PROC supported
+
 - [ ] Bracket identifier normalized
 
 ### Task 4.2 — Parameter Extraction
@@ -231,9 +253,13 @@ Output:
 Checklist:
 
 - [ ] Basic parameters detected
+
 - [ ] Type with parentheses detected
+
 - [ ] Default NULL detected
+
 - [ ] Default number detected
+
 - [ ] No panic if no params
 
 ### Task 4.3 — Dependency Extraction
@@ -274,12 +300,19 @@ Output dependencies:
 Checklist:
 
 - [ ] FROM read detected
+
 - [ ] JOIN read detected
+
 - [ ] INSERT write detected
+
 - [ ] UPDATE write detected
+
 - [ ] DELETE write detected
+
 - [ ] MERGE write detected
+
 - [ ] EXEC execute detected
+
 - [ ] Dependencies deduped
 
 ### Task 4.4 — Temp Table Extraction
@@ -310,7 +343,9 @@ Output:
 Checklist:
 
 - [ ] Temp tables detected
+
 - [ ] Deduped
+
 - [ ] Sorted
 
 ### Task 4.5 — Statement Summary
@@ -333,11 +368,17 @@ Acceptance:
 Checklist:
 
 - [ ] Select classified
+
 - [ ] Insert classified
+
 - [ ] Update classified
+
 - [ ] Delete classified
+
 - [ ] Merge classified
+
 - [ ] Execute classified
+
 - [ ] Unknown fallback works
 
 ## Phase 5 — Risk Rules
@@ -362,7 +403,9 @@ Acceptance:
 Checklist:
 
 - [ ] rules module created
+
 - [ ] detect_risks public function exists
+
 - [ ] sorting helper exists
 
 ### Task 5.2 — Implement Simple Pattern Rules
@@ -392,11 +435,17 @@ Each fixture triggers expected rule.
 Checklist:
 
 - [ ] select_star
+
 - [ ] nolock_used
+
 - [ ] dynamic_sql
+
 - [ ] linked_server
+
 - [ ] cursor_used
+
 - [ ] hardcoded_date
+
 - [ ] status_magic_number
 
 ### Task 5.3 — Implement Statement-Based Rules
@@ -426,7 +475,9 @@ Acceptance:
 Checklist:
 
 - [ ] update_without_where
+
 - [ ] delete_without_where
+
 - [ ] insert_select_no_distinct
 
 ### Task 5.4 — Implement Aggregation/Transaction/Temp Rules
@@ -450,8 +501,11 @@ Acceptance:
 Checklist:
 
 - [ ] multi_join_aggregation
+
 - [ ] transaction_without_trycatch
+
 - [ ] trycatch_without_rollback
+
 - [ ] temp_table_chain
 
 ## Phase 6 — Analyzer
@@ -481,8 +535,11 @@ For duplicate aggregation SQL:
 Checklist:
 
 - [ ] analyzer module created
+
 - [ ] analyze_sql implemented
+
 - [ ] metrics computed
+
 - [ ] risks attached
 
 ## Phase 7 — Report Output
@@ -510,8 +567,11 @@ Prints Procedure, Parameters, Tables Read, Tables Written, Temp Tables, Risks.
 Checklist:
 
 - [ ] Terminal report implemented
+
 - [ ] Dependencies grouped
+
 - [ ] Risks printed with severity
+
 - [ ] Default scan uses terminal report
 
 ### Task 7.2 — Markdown Renderer
@@ -540,8 +600,11 @@ cargo run -- scan examples/procedures/duplicate_aggregation.sql --out sptrace-ou
 Checklist:
 
 - [ ] Markdown renderer implemented
+
 - [ ] Mermaid renderer implemented
+
 - [ ] `--out` writes file
+
 - [ ] Parent dir created
 
 ### Task 7.3 — JSON Output
@@ -570,7 +633,9 @@ Valid JSON printed.
 Checklist:
 
 - [ ] JSON output implemented
+
 - [ ] Pretty JSON
+
 - [ ] No terminal report when `--json` true
 
 ## Phase 8 — Examples and README
@@ -596,9 +661,13 @@ Each file can be scanned without error.
 Checklist:
 
 - [ ] duplicate_aggregation.sql
+
 - [ ] linked_server.sql
+
 - [ ] update_without_where.sql
+
 - [ ] dynamic_sql.sql
+
 - [ ] select_star_nolock.sql
 
 ### Task 8.2 — Add README
@@ -607,15 +676,15 @@ Checklist:
 
 Sections:
 
-1. Title and tagline.
-2. What is SPTrace?
-3. Why?
-4. Install from source.
-5. Usage.
-6. Example input/output.
-7. Risk rules.
-8. Security/privacy.
-9. Limitations.
+ 1. Title and tagline.
+ 2. What is SPTrace?
+ 3. Why?
+ 4. Install from source.
+ 5. Usage.
+ 6. Example input/output.
+ 7. Risk rules.
+ 8. Security/privacy.
+ 9. Limitations.
 10. Roadmap.
 
 Acceptance:
@@ -631,9 +700,13 @@ README explains:
 Checklist:
 
 - [ ] README created
+
 - [ ] Install section
+
 - [ ] Usage section
+
 - [ ] Demo section
+
 - [ ] Limitations section
 
 ## Phase 9 — Final Validation
@@ -665,10 +738,15 @@ Acceptance:
 Checklist:
 
 - [ ] cargo fmt
+
 - [ ] cargo check
+
 - [ ] cargo test
+
 - [ ] all examples scan
+
 - [ ] markdown generated
+
 - [ ] json generated
 
 ## Phase 10 — Optional Polish After MVP Works
@@ -676,11 +754,17 @@ Checklist:
 Do only after v0.1 works.
 
 - [ ] Add colored severity in terminal.
+
 - [x] Add `--diagram mermaid` to write `.mmd` separately.
+
 - [x] Add folder scan.
+
 - [x] Add `sptrace context`.
+
 - [ ] Add config file.
+
 - [ ] Add GitHub Actions CI.
+
 - [ ] Add release binaries.
 
 ## Notes for Cheap Model Execution

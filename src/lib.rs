@@ -24,7 +24,9 @@ pub fn execute(cli: Cli) -> Result<()> {
             json,
             diagram,
         } => execute_scan(&path, out.as_deref(), json, diagram.as_deref(), &config),
-        Commands::Context { path, out, json } => execute_context(&path, out.as_deref(), json, &config),
+        Commands::Context { path, out, json } => {
+            execute_context(&path, out.as_deref(), json, &config)
+        }
         Commands::Diff {
             before,
             after,
@@ -56,7 +58,12 @@ pub fn execute_scan(
     execute_file_scan(path, out, json, diagram, config)
 }
 
-pub fn execute_context(path: &Path, out: Option<&Path>, json: bool, config: &crate::model::Config) -> Result<()> {
+pub fn execute_context(
+    path: &Path,
+    out: Option<&Path>,
+    json: bool,
+    config: &crate::model::Config,
+) -> Result<()> {
     let sql = read_sql(path)?;
     let trace = analyzer::analyze_sql_with_config(&sql, config)?;
     let output = if json {
@@ -67,7 +74,13 @@ pub fn execute_context(path: &Path, out: Option<&Path>, json: bool, config: &cra
     emit_text(&output, out)
 }
 
-pub fn execute_diff(before: &Path, after: &Path, out: Option<&Path>, json: bool, config: &crate::model::Config) -> Result<()> {
+pub fn execute_diff(
+    before: &Path,
+    after: &Path,
+    out: Option<&Path>,
+    json: bool,
+    config: &crate::model::Config,
+) -> Result<()> {
     let before_sql = read_sql(before)?;
     let after_sql = read_sql(after)?;
     let before_trace = analyzer::analyze_sql_with_config(&before_sql, config)?;
@@ -212,7 +225,10 @@ fn execute_directory_scan(
         let master_diagram = report::render_folder_mermaid(&all_traces);
         let master_diagram_path = out_dir.join("folder-dependency.mmd");
         fs::write(&master_diagram_path, master_diagram).with_context(|| {
-            format!("Failed to write folder diagram: {}", master_diagram_path.display())
+            format!(
+                "Failed to write folder diagram: {}",
+                master_diagram_path.display()
+            )
         })?;
     }
 
@@ -291,7 +307,8 @@ pub fn load_config(config_path: Option<&Path>) -> Result<crate::model::Config> {
     if let Some(path) = config_path {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read config file: {}", path.display()))?;
-        let is_json = path.extension()
+        let is_json = path
+            .extension()
             .and_then(|ext| ext.to_str())
             .map(|ext| ext.eq_ignore_ascii_case("json"))
             .unwrap_or(false);
@@ -308,15 +325,15 @@ pub fn load_config(config_path: Option<&Path>) -> Result<crate::model::Config> {
         let toml_path = Path::new("sptrace.toml");
         if toml_path.exists() {
             let content = fs::read_to_string(toml_path)?;
-            let cfg: crate::model::Config = toml::from_str(&content)
-                .with_context(|| "Failed to parse sptrace.toml")?;
+            let cfg: crate::model::Config =
+                toml::from_str(&content).with_context(|| "Failed to parse sptrace.toml")?;
             return Ok(cfg);
         }
         let json_path = Path::new("sptrace.json");
         if json_path.exists() {
             let content = fs::read_to_string(json_path)?;
-            let cfg: crate::model::Config = serde_json::from_str(&content)
-                .with_context(|| "Failed to parse sptrace.json")?;
+            let cfg: crate::model::Config =
+                serde_json::from_str(&content).with_context(|| "Failed to parse sptrace.json")?;
             return Ok(cfg);
         }
         Ok(crate::model::Config::default())
@@ -345,10 +362,7 @@ mod tests {
         let _ = fs::remove_file(file_path);
 
         let cfg = res.unwrap();
-        assert_eq!(
-            cfg.rules.get("select_star"),
-            Some(&RuleConfig::Bool(false))
-        );
+        assert_eq!(cfg.rules.get("select_star"), Some(&RuleConfig::Bool(false)));
         assert_eq!(
             cfg.rules.get("nolock_used"),
             Some(&RuleConfig::Severity(Severity::High))
@@ -375,10 +389,7 @@ mod tests {
         let _ = fs::remove_file(file_path);
 
         let cfg = res.unwrap();
-        assert_eq!(
-            cfg.rules.get("select_star"),
-            Some(&RuleConfig::Bool(true))
-        );
+        assert_eq!(cfg.rules.get("select_star"), Some(&RuleConfig::Bool(true)));
         assert_eq!(
             cfg.rules.get("nolock_used"),
             Some(&RuleConfig::Severity(Severity::Low))
