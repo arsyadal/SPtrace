@@ -74,7 +74,11 @@ pub fn render_markdown(trace: &ProcedureTrace) -> String {
         "- Statements: {}\n",
         trace.metrics.statement_count
     ));
-    out.push_str(&format!("- Risk Level: {}\n\n", trace.metrics.risk_level));
+    out.push_str(&format!("- Risk Level: {}\n", trace.metrics.risk_level));
+    out.push_str(&format!("- Read Tables: {}\n", groups.reads.len()));
+    out.push_str(&format!("- Written Tables: {}\n", groups.writes.len()));
+    out.push_str(&format!("- Temp Tables: {}\n", trace.temp_tables.len()));
+    out.push_str(&format!("- Risk Findings: {}\n\n", trace.risks.len()));
 
     out.push_str("## 2. Parameters\n");
     out.push_str("| Parameter | Type | Default |\n|---|---|---|\n");
@@ -155,14 +159,16 @@ pub fn render_context(trace: &ProcedureTrace) -> String {
     out.push_str(&format!("{}\n\n", name));
     out.push_str("## Summary\n");
     out.push_str(&format!(
-        "This procedure reads {} {}, writes {} {}, uses {} temp {}, and has risk level {}.\n\n",
+        "This procedure has {} statements, reads {} {}, writes {} {}, uses {} temp {}, and raises {} risk {}.\n\n",
+        trace.metrics.statement_count,
         groups.reads.len(),
         pluralize(groups.reads.len(), "table", "tables"),
         groups.writes.len(),
         pluralize(groups.writes.len(), "table", "tables"),
         trace.temp_tables.len(),
         pluralize(trace.temp_tables.len(), "table", "tables"),
-        trace.metrics.risk_level
+        trace.risks.len(),
+        pluralize(trace.risks.len(), "finding", "findings")
     ));
 
     out.push_str("## Extracted Dependencies\n");
@@ -215,11 +221,12 @@ pub fn render_context_json(trace: &ProcedureTrace) -> String {
     let value = json!({
         "procedure": trace.name,
         "summary": {
+            "statement_count": trace.metrics.statement_count,
             "read_count": groups.reads.len(),
             "write_count": groups.writes.len(),
             "temp_table_count": trace.temp_tables.len(),
+            "risk_count": trace.risks.len(),
             "risk_level": trace.metrics.risk_level,
-            "statement_count": trace.metrics.statement_count,
         },
         "dependencies": {
             "reads": groups.reads,
@@ -238,11 +245,11 @@ pub fn render_context_json(trace: &ProcedureTrace) -> String {
 pub fn render_dependency_index(entries: &[ScanIndexEntry]) -> String {
     let mut out = String::new();
     out.push_str("# SPTrace Dependency Index\n\n");
-    out.push_str("| File | Procedure | Reads | Writes | Risk Level | Risk Rules |\n");
-    out.push_str("|---|---|---:|---:|---|---|\n");
+    out.push_str("| File | Procedure | Statements | Reads | Writes | Temp Tables | Risk Count | Risk Level | Risk Rules |\n");
+    out.push_str("|---|---|---:|---:|---:|---:|---:|---|---|\n");
 
     if entries.is_empty() {
-        out.push_str("| None | - | 0 | 0 | Low | - |\n");
+        out.push_str("| None | - | 0 | 0 | 0 | 0 | 0 | Low | - |\n");
         return out;
     }
 
@@ -253,11 +260,14 @@ pub fn render_dependency_index(entries: &[ScanIndexEntry]) -> String {
             entry.risk_rules.join(", ")
         };
         out.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {} |\n",
+            "| {} | {} | {} | {} | {} | {} | {} | {} | {} |\n",
             entry.source_file,
             entry.procedure,
+            entry.statement_count,
             entry.read_count,
             entry.write_count,
+            entry.temp_table_count,
+            entry.risk_count,
             entry.risk_level,
             rules
         ));
@@ -479,6 +489,28 @@ pub fn render_diff(
         after.metrics.risk_level
     ));
 
+    out.push_str("## Change Summary\n");
+    out.push_str(&format!(
+        "- Statement Delta: {}\n",
+        after.metrics.statement_count as isize - before.metrics.statement_count as isize
+    ));
+    out.push_str(&format!(
+        "- Read Delta: {}\n",
+        after.metrics.read_count as isize - before.metrics.read_count as isize
+    ));
+    out.push_str(&format!(
+        "- Write Delta: {}\n",
+        after.metrics.write_count as isize - before.metrics.write_count as isize
+    ));
+    out.push_str(&format!(
+        "- Temp Table Delta: {}\n",
+        after.temp_tables.len() as isize - before.temp_tables.len() as isize
+    ));
+    out.push_str(&format!(
+        "- Risk Delta: {}\n\n",
+        after.risks.len() as isize - before.risks.len() as isize
+    ));
+
     out.push_str("## Parameter Changes\n");
     let before_params = parameter_set(before);
     let after_params = parameter_set(after);
@@ -575,6 +607,13 @@ pub fn render_diff_json(
             "after_procedure": after.name,
             "before_risk_level": before.metrics.risk_level,
             "after_risk_level": after.metrics.risk_level,
+        },
+        "change_summary": {
+            "statement_delta": after.metrics.statement_count as isize - before.metrics.statement_count as isize,
+            "read_delta": after.metrics.read_count as isize - before.metrics.read_count as isize,
+            "write_delta": after.metrics.write_count as isize - before.metrics.write_count as isize,
+            "temp_table_delta": after.temp_tables.len() as isize - before.temp_tables.len() as isize,
+            "risk_delta": after.risks.len() as isize - before.risks.len() as isize,
         },
         "parameter_changes": {
             "added": set_diff(&parameter_set(after), &parameter_set(before)),
@@ -831,6 +870,7 @@ mod tests {
     fn context_contains_ai_sections() {
         let context = render_context(&sample_trace());
         assert!(context.contains("# AI Context for Stored Procedure Analysis"));
+        assert!(context.contains("has 2 statements"));
         assert!(context.contains("## Suspicious Logic"));
     }
 
@@ -847,12 +887,17 @@ mod tests {
             source_file: "a.sql".to_string(),
             report_file: "a.md".to_string(),
             procedure: "SP_TEST".to_string(),
+            statement_count: 2,
             read_count: 1,
             write_count: 1,
+            temp_table_count: 0,
+            risk_count: 1,
             risk_level: Severity::Low,
             risk_rules: vec!["select_star".to_string()],
         }]);
         assert!(index.contains("# SPTrace Dependency Index"));
+        assert!(index.contains("Statements"));
+        assert!(index.contains("Risk Count"));
         assert!(index.contains("a.sql"));
         assert!(index.contains("select_star"));
     }
@@ -880,6 +925,7 @@ mod tests {
 
         let diff = render_diff(&before, &after, "before.sql", "after.sql");
         assert!(diff.contains("# SPTrace Diff Report"));
+        assert!(diff.contains("Change Summary"));
         assert!(diff.contains("Added"));
         assert!(diff.contains("TB_NEW"));
         assert!(diff.contains("dynamic_sql"));

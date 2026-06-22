@@ -8,7 +8,7 @@ pub mod rules;
 
 use anyhow::{bail, Context, Result};
 use cli::{Cli, Commands};
-use model::{Operation, ScanIndexEntry};
+use model::{Operation, ScanIndexEntry, Severity};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -189,6 +189,7 @@ fn execute_directory_scan(
                 source_file: path.display().to_string(),
                 report_file: report_path.display().to_string(),
                 procedure,
+                statement_count: trace.metrics.statement_count,
                 read_count: trace
                     .dependencies
                     .iter()
@@ -199,6 +200,8 @@ fn execute_directory_scan(
                     .iter()
                     .filter(|dep| dep.operation == Operation::Write)
                     .count(),
+                temp_table_count: trace.temp_tables.len(),
+                risk_count: trace.risks.len(),
                 risk_level: trace.metrics.risk_level.clone(),
                 risk_rules: trace
                     .risks
@@ -212,8 +215,10 @@ fn execute_directory_scan(
     }
 
     entries.sort_by(|a, b| {
-        a.procedure
-            .cmp(&b.procedure)
+        b.risk_level
+            .rank()
+            .cmp(&a.risk_level.rank())
+            .then_with(|| a.procedure.cmp(&b.procedure))
             .then_with(|| a.source_file.cmp(&b.source_file))
     });
     let index = report::render_dependency_index(&entries);
@@ -232,8 +237,25 @@ fn execute_directory_scan(
         })?;
     }
 
+    let high = entries
+        .iter()
+        .filter(|entry| entry.risk_level == Severity::High)
+        .count();
+    let medium = entries
+        .iter()
+        .filter(|entry| entry.risk_level == Severity::Medium)
+        .count();
+    let low = entries
+        .iter()
+        .filter(|entry| entry.risk_level == Severity::Low)
+        .count();
+
     println!("Scanned {} SQL file(s)", scanned);
     println!("Generated dependency index: {}", index_path.display());
+    println!(
+        "Risk summary: {} high, {} medium, {} low",
+        high, medium, low
+    );
     for entry in entries {
         println!("- {} -> {}", entry.source_file, entry.report_file);
     }

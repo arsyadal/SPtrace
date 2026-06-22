@@ -123,8 +123,11 @@ pub struct ScanIndexEntry {
     pub source_file: String,
     pub report_file: String,
     pub procedure: String,
+    pub statement_count: usize,
     pub read_count: usize,
     pub write_count: usize,
+    pub temp_table_count: usize,
+    pub risk_count: usize,
     pub risk_level: Severity,
     pub risk_rules: Vec<String>,
 }
