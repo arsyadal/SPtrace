@@ -49,7 +49,7 @@ cargo build
 
 ### Releases
 
-Prebuilt binaries are published on GitHub Releases for tagged versions.
+Prebuilt binaries are published on GitHub Releases for tagged versions. See `CHANGELOG.md` for release notes.
 
 ## Usage
 

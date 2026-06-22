@@ -21,9 +21,9 @@ jobs:
             binary: sptrace
             asset: sptrace-linux-x86_64
           - os: macos-latest
-            target: aarch64-apple-darwin
+            target: x86_64-apple-darwin
             binary: sptrace
-            asset: sptrace-macos-aarch64
+            asset: sptrace-macos-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             binary: sptrace.exe
