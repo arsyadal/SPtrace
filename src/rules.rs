@@ -5,6 +5,10 @@ use regex::Regex;
 use std::collections::HashSet;
 
 pub fn detect_risks(sql: &str, trace: &ProcedureTrace) -> Vec<RiskFinding> {
+    detect_risks_with_config(sql, trace, &crate::model::Config::default())
+}
+
+pub fn detect_risks_with_config(sql: &str, trace: &ProcedureTrace, config: &crate::model::Config) -> Vec<RiskFinding> {
     let body = extract_body_sql(sql);
     let mut findings = Vec::new();
 
@@ -49,7 +53,26 @@ pub fn detect_risks(sql: &str, trace: &ProcedureTrace) -> Vec<RiskFinding> {
         findings.push(finding);
     }
 
-    dedupe_and_sort(findings)
+    let mut processed_findings = Vec::new();
+    for mut finding in findings {
+        if let Some(rule_cfg) = config.rules.get(&finding.rule_id) {
+            match rule_cfg {
+                crate::model::RuleConfig::Bool(enabled) => {
+                    if *enabled {
+                        processed_findings.push(finding);
+                    }
+                }
+                crate::model::RuleConfig::Severity(sev) => {
+                    finding.severity = sev.clone();
+                    processed_findings.push(finding);
+                }
+            }
+        } else {
+            processed_findings.push(finding);
+        }
+    }
+
+    dedupe_and_sort(processed_findings)
 }
 
 fn dedupe_and_sort(findings: Vec<RiskFinding>) -> Vec<RiskFinding> {
@@ -476,5 +499,23 @@ mod tests {
         "#;
         let risks = detect_risks(sql, &empty_trace());
         assert!(risks.first().unwrap().severity >= risks.last().unwrap().severity);
+    }
+
+    #[test]
+    fn test_config_overrides() {
+        let sql = r#"
+            SELECT * FROM TB_A WITH (NOLOCK);
+        "#;
+        let trace_default = crate::analyzer::analyze_sql(sql).unwrap();
+        assert!(trace_default.risks.iter().any(|r| r.rule_id == "select_star" && r.severity == Severity::Low));
+        assert!(trace_default.risks.iter().any(|r| r.rule_id == "nolock_used" && r.severity == Severity::Medium));
+
+        let mut config = crate::model::Config::default();
+        config.rules.insert("select_star".to_string(), crate::model::RuleConfig::Bool(false));
+        config.rules.insert("nolock_used".to_string(), crate::model::RuleConfig::Severity(Severity::High));
+
+        let trace_custom = crate::analyzer::analyze_sql_with_config(sql, &config).unwrap();
+        assert!(!trace_custom.risks.iter().any(|r| r.rule_id == "select_star"));
+        assert!(trace_custom.risks.iter().any(|r| r.rule_id == "nolock_used" && r.severity == Severity::High));
     }
 }

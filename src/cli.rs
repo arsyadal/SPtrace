@@ -6,6 +6,9 @@ use std::path::PathBuf;
 #[command(version)]
 #[command(about = "Offline Stored Procedure analyzer for legacy SQL systems")]
 pub struct Cli {
+    #[arg(long, global = true, value_name = "FILE")]
+    pub config: Option<PathBuf>,
+
     #[command(subcommand)]
     pub command: Commands,
 }

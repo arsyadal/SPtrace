@@ -5,16 +5,19 @@ use crate::parser::{
     extract_dependencies, extract_parameters, extract_procedure_name, extract_temp_tables,
     summarize_statements,
 };
-use crate::rules::detect_risks;
 
 pub fn analyze_sql(sql: &str) -> Result<ProcedureTrace> {
+    analyze_sql_with_config(sql, &crate::model::Config::default())
+}
+
+pub fn analyze_sql_with_config(sql: &str, config: &crate::model::Config) -> Result<ProcedureTrace> {
     let mut trace = ProcedureTrace::default();
     trace.name = extract_procedure_name(sql);
     trace.parameters = extract_parameters(sql);
     trace.dependencies = extract_dependencies(sql);
     trace.temp_tables = extract_temp_tables(sql);
     trace.statements = summarize_statements(sql);
-    trace.risks = detect_risks(sql, &trace);
+    trace.risks = crate::rules::detect_risks_with_config(sql, &trace, config);
     trace.metrics = compute_metrics(&trace);
     Ok(trace)
 }

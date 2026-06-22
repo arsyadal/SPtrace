@@ -38,10 +38,17 @@ pub fn render_terminal(trace: &ProcedureTrace) -> String {
     if trace.risks.is_empty() {
         lines.push("- None".to_string());
     } else {
+        use colored::Colorize;
         for risk in &trace.risks {
+            let severity_str = risk.severity.to_string().to_uppercase();
+            let colored_severity = match risk.severity {
+                crate::model::Severity::High => severity_str.red().bold().to_string(),
+                crate::model::Severity::Medium => severity_str.yellow().bold().to_string(),
+                crate::model::Severity::Low => severity_str.cyan().bold().to_string(),
+            };
             lines.push(format!(
                 "[{}] {} - {}",
-                risk.severity.to_string().to_uppercase(),
+                colored_severity,
                 risk.rule_id,
                 risk.message
             ));

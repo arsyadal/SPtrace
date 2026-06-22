@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::fmt;
 
 #[derive(Debug, Serialize, Clone)]
@@ -87,10 +87,13 @@ pub struct RiskFinding {
     pub suggestion: String,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Severity {
+    #[serde(alias = "low", alias = "LOW", alias = "Low")]
     Low,
+    #[serde(alias = "medium", alias = "MEDIUM", alias = "Medium")]
     Medium,
+    #[serde(alias = "high", alias = "HIGH", alias = "High")]
     High,
 }
 
@@ -161,3 +164,17 @@ impl fmt::Display for StatementKind {
         write!(f, "{label}")
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Config {
+    #[serde(default)]
+    pub rules: std::collections::HashMap<String, RuleConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum RuleConfig {
+    Bool(bool),
+    Severity(Severity),
+}
+

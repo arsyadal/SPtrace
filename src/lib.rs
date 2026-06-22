@@ -16,20 +16,21 @@ use std::{
 use walkdir::WalkDir;
 
 pub fn execute(cli: Cli) -> Result<()> {
+    let config = load_config(cli.config.as_deref())?;
     match cli.command {
         Commands::Scan {
             path,
             out,
             json,
             diagram,
-        } => execute_scan(&path, out.as_deref(), json, diagram.as_deref()),
-        Commands::Context { path, out, json } => execute_context(&path, out.as_deref(), json),
+        } => execute_scan(&path, out.as_deref(), json, diagram.as_deref(), &config),
+        Commands::Context { path, out, json } => execute_context(&path, out.as_deref(), json, &config),
         Commands::Diff {
             before,
             after,
             out,
             json,
-        } => execute_diff(&before, &after, out.as_deref(), json),
+        } => execute_diff(&before, &after, out.as_deref(), json, &config),
     }
 }
 
@@ -38,6 +39,7 @@ pub fn execute_scan(
     out: Option<&Path>,
     json: bool,
     diagram: Option<&str>,
+    config: &crate::model::Config,
 ) -> Result<()> {
     if let Some(format) = diagram {
         if !format.eq_ignore_ascii_case("mermaid") {
@@ -49,14 +51,14 @@ pub fn execute_scan(
     }
 
     if path.is_dir() {
-        return execute_directory_scan(path, out, json, diagram);
+        return execute_directory_scan(path, out, json, diagram, config);
     }
-    execute_file_scan(path, out, json, diagram)
+    execute_file_scan(path, out, json, diagram, config)
 }
 
-pub fn execute_context(path: &Path, out: Option<&Path>, json: bool) -> Result<()> {
+pub fn execute_context(path: &Path, out: Option<&Path>, json: bool, config: &crate::model::Config) -> Result<()> {
     let sql = read_sql(path)?;
-    let trace = analyzer::analyze_sql(&sql)?;
+    let trace = analyzer::analyze_sql_with_config(&sql, config)?;
     let output = if json {
         report::render_context_json(&trace)
     } else {
@@ -65,11 +67,11 @@ pub fn execute_context(path: &Path, out: Option<&Path>, json: bool) -> Result<()
     emit_text(&output, out)
 }
 
-pub fn execute_diff(before: &Path, after: &Path, out: Option<&Path>, json: bool) -> Result<()> {
+pub fn execute_diff(before: &Path, after: &Path, out: Option<&Path>, json: bool, config: &crate::model::Config) -> Result<()> {
     let before_sql = read_sql(before)?;
     let after_sql = read_sql(after)?;
-    let before_trace = analyzer::analyze_sql(&before_sql)?;
-    let after_trace = analyzer::analyze_sql(&after_sql)?;
+    let before_trace = analyzer::analyze_sql_with_config(&before_sql, config)?;
+    let after_trace = analyzer::analyze_sql_with_config(&after_sql, config)?;
     let output = if json {
         report::render_diff_json(
             &before_trace,
@@ -93,9 +95,10 @@ fn execute_file_scan(
     out: Option<&Path>,
     json: bool,
     diagram: Option<&str>,
+    config: &crate::model::Config,
 ) -> Result<()> {
     let sql = read_sql(path)?;
-    let trace = analyzer::analyze_sql(&sql)?;
+    let trace = analyzer::analyze_sql_with_config(&sql, config)?;
 
     if json {
         println!("{}", serde_json::to_string_pretty(&trace)?);
@@ -123,6 +126,7 @@ fn execute_directory_scan(
     out: Option<&Path>,
     json: bool,
     diagram: Option<&str>,
+    config: &crate::model::Config,
 ) -> Result<()> {
     if json {
         bail!("JSON output is only supported for single-file scan in v0.1.");
@@ -153,7 +157,7 @@ fn execute_directory_scan(
             .unwrap_or(false)
         {
             let sql = read_sql(path)?;
-            let trace = analyzer::analyze_sql(&sql)?;
+            let trace = analyzer::analyze_sql_with_config(&sql, config)?;
             let procedure = trace.name.clone().unwrap_or_else(|| fallback_name(path));
             let report_file_name = format!("{}.md", sanitize_filename(&procedure));
             let report_path = out_dir.join(&report_file_name);
@@ -281,4 +285,103 @@ fn sanitize_filename(value: &str) -> String {
         out = out.replace("__", "_");
     }
     out.trim_matches('_').to_string()
+}
+
+pub fn load_config(config_path: Option<&Path>) -> Result<crate::model::Config> {
+    if let Some(path) = config_path {
+        let content = fs::read_to_string(path)
+            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+        let is_json = path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.eq_ignore_ascii_case("json"))
+            .unwrap_or(false);
+        if is_json {
+            let cfg: crate::model::Config = serde_json::from_str(&content)
+                .with_context(|| format!("Failed to parse config as JSON: {}", path.display()))?;
+            Ok(cfg)
+        } else {
+            let cfg: crate::model::Config = toml::from_str(&content)
+                .with_context(|| format!("Failed to parse config as TOML: {}", path.display()))?;
+            Ok(cfg)
+        }
+    } else {
+        let toml_path = Path::new("sptrace.toml");
+        if toml_path.exists() {
+            let content = fs::read_to_string(toml_path)?;
+            let cfg: crate::model::Config = toml::from_str(&content)
+                .with_context(|| "Failed to parse sptrace.toml")?;
+            return Ok(cfg);
+        }
+        let json_path = Path::new("sptrace.json");
+        if json_path.exists() {
+            let content = fs::read_to_string(json_path)?;
+            let cfg: crate::model::Config = serde_json::from_str(&content)
+                .with_context(|| "Failed to parse sptrace.json")?;
+            return Ok(cfg);
+        }
+        Ok(crate::model::Config::default())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::{RuleConfig, Severity};
+
+    #[test]
+    fn test_load_config_toml() {
+        let file_path = Path::new("temp_test_config.toml");
+        fs::write(
+            file_path,
+            r#"
+            [rules]
+            select_star = false
+            nolock_used = "High"
+            "#,
+        )
+        .unwrap();
+
+        let res = load_config(Some(file_path));
+        let _ = fs::remove_file(file_path);
+
+        let cfg = res.unwrap();
+        assert_eq!(
+            cfg.rules.get("select_star"),
+            Some(&RuleConfig::Bool(false))
+        );
+        assert_eq!(
+            cfg.rules.get("nolock_used"),
+            Some(&RuleConfig::Severity(Severity::High))
+        );
+    }
+
+    #[test]
+    fn test_load_config_json() {
+        let file_path = Path::new("temp_test_config.json");
+        fs::write(
+            file_path,
+            r#"
+            {
+                "rules": {
+                    "select_star": true,
+                    "nolock_used": "low"
+                }
+            }
+            "#,
+        )
+        .unwrap();
+
+        let res = load_config(Some(file_path));
+        let _ = fs::remove_file(file_path);
+
+        let cfg = res.unwrap();
+        assert_eq!(
+            cfg.rules.get("select_star"),
+            Some(&RuleConfig::Bool(true))
+        );
+        assert_eq!(
+            cfg.rules.get("nolock_used"),
+            Some(&RuleConfig::Severity(Severity::Low))
+        );
+    }
 }
