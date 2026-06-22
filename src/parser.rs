@@ -300,49 +300,11 @@ fn parse_parameter_item(item: &str) -> Option<Parameter> {
 
 fn strip_outer_parens(block: &str) -> &str {
     let trimmed = block.trim();
-    if trimmed.starts_with('(') && trimmed.ends_with(')') && outer_parens_wrap_all(trimmed) {
+    if trimmed.starts_with('(') && trimmed.ends_with(')') {
         trimmed[1..trimmed.len() - 1].trim()
     } else {
         trimmed
     }
-}
-
-fn outer_parens_wrap_all(input: &str) -> bool {
-    let mut depth = 0isize;
-    let mut in_single = false;
-    let mut chars = input.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if c == '\'' {
-            if in_single {
-                if matches!(chars.peek(), Some('\'')) {
-                    chars.next();
-                } else {
-                    in_single = false;
-                }
-            } else {
-                in_single = true;
-            }
-            continue;
-        }
-
-        if in_single {
-            continue;
-        }
-
-        match c {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 && chars.peek().is_some() {
-                    return false;
-                }
-            }
-            _ => {}
-        }
-    }
-
-    depth == 0
 }
 
 fn split_first_assignment(input: &str) -> (String, Option<String>) {
@@ -554,6 +516,19 @@ mod tests {
     }
 
     #[test]
+    fn extracts_procedure_name_from_create_or_alter_multiline() {
+        let sql = r#"
+            CREATE OR ALTER PROC [dbo].[SP_TEST_EDGE]
+            AS
+            SELECT 1
+        "#;
+        assert_eq!(
+            extract_procedure_name(sql),
+            Some("dbo.SP_TEST_EDGE".to_string())
+        );
+    }
+
+    #[test]
     fn extracts_parameters_basic() {
         let sql = r#"
             CREATE PROCEDURE dbo.SP_TEST
@@ -577,6 +552,42 @@ mod tests {
         assert_eq!(params[2].name, "@FLAG");
         assert_eq!(params[2].data_type, "INT");
         assert_eq!(params[2].default_value.as_deref(), Some("0"));
+    }
+
+    #[test]
+    fn extracts_parameters_multiline_and_output() {
+        let sql = r#"
+            CREATE OR ALTER PROCEDURE dbo.SP_TEST
+                @ORDER_NO VARCHAR(20),
+                @FLAG INT = 1 OUTPUT,
+                @NAME NVARCHAR(50) = 'A, B, C'
+            AS
+            SELECT 1
+        "#;
+
+        let params = extract_parameters(sql);
+        assert_eq!(params.len(), 3);
+        assert_eq!(params[1].name, "@FLAG");
+        assert_eq!(params[1].data_type, "INT");
+        assert_eq!(params[1].default_value.as_deref(), Some("1"));
+        assert_eq!(params[2].name, "@NAME");
+        assert_eq!(params[2].default_value.as_deref(), Some("'A, B, C'"));
+    }
+
+    #[test]
+    fn extracts_parameters_without_begin_block() {
+        let sql = r#"
+            ALTER PROC [dbo].[SP_TEST]
+                @A INT,
+                @B BIT = 0
+            AS
+            SELECT 1
+        "#;
+
+        let params = extract_parameters(sql);
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0].name, "@A");
+        assert_eq!(params[1].default_value.as_deref(), Some("0"));
     }
 
     #[test]
