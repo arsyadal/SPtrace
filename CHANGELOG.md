@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2.0
+
+- Polished context and diff output
+- Improved folder scan sorting and summary
+- Added report metrics to dependency index
+- Added edge-case parser and rule coverage
+- Release readiness updates
+
 ## v0.1.1
 
 - Release workflow hardening for production tags
