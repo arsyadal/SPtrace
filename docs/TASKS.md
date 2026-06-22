@@ -43,11 +43,11 @@ Files:
 
 Checklist:
 
-- [ ] Cargo project created
+- [x] Cargo project created
 
-- [ ] Dependencies added
+- [x] Dependencies added
 
-- [ ] `cargo check` passes
+- [x] `cargo check` passes
 
 ## Phase 1 — CLI Skeleton
 
@@ -79,13 +79,13 @@ Files:
 
 Checklist:
 
-- [ ] CLI structs implemented
+- [x] CLI structs implemented
 
-- [ ] `scan` command accepted
+- [x] `scan` command accepted
 
-- [ ] `--out` accepted
+- [x] `--out` accepted
 
-- [ ] `--json` accepted
+- [x] `--json` accepted
 
 ## Phase 2 — Data Model
 
@@ -112,19 +112,19 @@ Files:
 
 Checklist:
 
-- [ ] ProcedureTrace added
+- [x] ProcedureTrace added
 
-- [ ] Parameter added
+- [x] Parameter added
 
-- [ ] Dependency added
+- [x] Dependency added
 
-- [ ] RiskFinding added
+- [x] RiskFinding added
 
-- [ ] Severity added
+- [x] Severity added
 
-- [ ] StatementSummary added
+- [x] StatementSummary added
 
-- [ ] `cargo check` passes
+- [x] `cargo check` passes
 
 ## Phase 3 — Normalizer
 
@@ -155,17 +155,17 @@ Files:
 
 Checklist:
 
-- [ ] Line comments stripped
+- [x] Line comments stripped
 
-- [ ] Block comments stripped
+- [x] Block comments stripped
 
-- [ ] Whitespace normalized
+- [x] Whitespace normalized
 
-- [ ] Brackets removed from identifiers
+- [x] Brackets removed from identifiers
 
-- [ ] Statements split approximately
+- [x] Statements split approximately
 
-- [ ] Unit tests added
+- [x] Unit tests added
 
 ## Phase 4 — Parser
 
@@ -209,15 +209,15 @@ dbo.SP_TEST
 
 Checklist:
 
-- [ ] CREATE PROCEDURE supported
+- [x] CREATE PROCEDURE supported
 
-- [ ] ALTER PROCEDURE supported
+- [x] ALTER PROCEDURE supported
 
-- [ ] CREATE PROC supported
+- [x] CREATE PROC supported
 
-- [ ] ALTER PROC supported
+- [x] ALTER PROC supported
 
-- [ ] Bracket identifier normalized
+- [x] Bracket identifier normalized
 
 ### Task 4.2 — Parameter Extraction
 
@@ -252,15 +252,15 @@ Output:
 
 Checklist:
 
-- [ ] Basic parameters detected
+- [x] Basic parameters detected
 
-- [ ] Type with parentheses detected
+- [x] Type with parentheses detected
 
-- [ ] Default NULL detected
+- [x] Default NULL detected
 
-- [ ] Default number detected
+- [x] Default number detected
 
-- [ ] No panic if no params
+- [x] No panic if no params
 
 ### Task 4.3 — Dependency Extraction
 
@@ -299,21 +299,21 @@ Output dependencies:
 
 Checklist:
 
-- [ ] FROM read detected
+- [x] FROM read detected
 
-- [ ] JOIN read detected
+- [x] JOIN read detected
 
-- [ ] INSERT write detected
+- [x] INSERT write detected
 
-- [ ] UPDATE write detected
+- [x] UPDATE write detected
 
-- [ ] DELETE write detected
+- [x] DELETE write detected
 
-- [ ] MERGE write detected
+- [x] MERGE write detected
 
-- [ ] EXEC execute detected
+- [x] EXEC execute detected
 
-- [ ] Dependencies deduped
+- [x] Dependencies deduped
 
 ### Task 4.4 — Temp Table Extraction
 
@@ -342,11 +342,11 @@ Output:
 
 Checklist:
 
-- [ ] Temp tables detected
+- [x] Temp tables detected
 
-- [ ] Deduped
+- [x] Deduped
 
-- [ ] Sorted
+- [x] Sorted
 
 ### Task 4.5 — Statement Summary
 
@@ -367,19 +367,19 @@ Acceptance:
 
 Checklist:
 
-- [ ] Select classified
+- [x] Select classified
 
-- [ ] Insert classified
+- [x] Insert classified
 
-- [ ] Update classified
+- [x] Update classified
 
-- [ ] Delete classified
+- [x] Delete classified
 
-- [ ] Merge classified
+- [x] Merge classified
 
-- [ ] Execute classified
+- [x] Execute classified
 
-- [ ] Unknown fallback works
+- [x] Unknown fallback works
 
 ## Phase 5 — Risk Rules
 
@@ -402,11 +402,11 @@ Acceptance:
 
 Checklist:
 
-- [ ] rules module created
+- [x] rules module created
 
-- [ ] detect_risks public function exists
+- [x] detect_risks public function exists
 
-- [ ] sorting helper exists
+- [x] sorting helper exists
 
 ### Task 5.2 — Implement Simple Pattern Rules
 
@@ -434,19 +434,19 @@ Each fixture triggers expected rule.
 
 Checklist:
 
-- [ ] select_star
+- [x] select_star
 
-- [ ] nolock_used
+- [x] nolock_used
 
-- [ ] dynamic_sql
+- [x] dynamic_sql
 
-- [ ] linked_server
+- [x] linked_server
 
-- [ ] cursor_used
+- [x] cursor_used
 
-- [ ] hardcoded_date
+- [x] hardcoded_date
 
-- [ ] status_magic_number
+- [x] status_magic_number
 
 ### Task 5.3 — Implement Statement-Based Rules
 
@@ -474,11 +474,11 @@ Acceptance:
 
 Checklist:
 
-- [ ] update_without_where
+- [x] update_without_where
 
-- [ ] delete_without_where
+- [x] delete_without_where
 
-- [ ] insert_select_no_distinct
+- [x] insert_select_no_distinct
 
 ### Task 5.4 — Implement Aggregation/Transaction/Temp Rules
 
@@ -500,13 +500,13 @@ Acceptance:
 
 Checklist:
 
-- [ ] multi_join_aggregation
+- [x] multi_join_aggregation
 
-- [ ] transaction_without_trycatch
+- [x] transaction_without_trycatch
 
-- [ ] trycatch_without_rollback
+- [x] trycatch_without_rollback
 
-- [ ] temp_table_chain
+- [x] temp_table_chain
 
 ## Phase 6 — Analyzer
 
@@ -534,13 +534,13 @@ For duplicate aggregation SQL:
 
 Checklist:
 
-- [ ] analyzer module created
+- [x] analyzer module created
 
-- [ ] analyze_sql implemented
+- [x] analyze_sql implemented
 
-- [ ] metrics computed
+- [x] metrics computed
 
-- [ ] risks attached
+- [x] risks attached
 
 ## Phase 7 — Report Output
 
@@ -566,13 +566,13 @@ Prints Procedure, Parameters, Tables Read, Tables Written, Temp Tables, Risks.
 
 Checklist:
 
-- [ ] Terminal report implemented
+- [x] Terminal report implemented
 
-- [ ] Dependencies grouped
+- [x] Dependencies grouped
 
-- [ ] Risks printed with severity
+- [x] Risks printed with severity
 
-- [ ] Default scan uses terminal report
+- [x] Default scan uses terminal report
 
 ### Task 7.2 — Markdown Renderer
 
@@ -599,13 +599,13 @@ cargo run -- scan examples/procedures/duplicate_aggregation.sql --out sptrace-ou
 
 Checklist:
 
-- [ ] Markdown renderer implemented
+- [x] Markdown renderer implemented
 
-- [ ] Mermaid renderer implemented
+- [x] Mermaid renderer implemented
 
-- [ ] `--out` writes file
+- [x] `--out` writes file
 
-- [ ] Parent dir created
+- [x] Parent dir created
 
 ### Task 7.3 — JSON Output
 
@@ -632,11 +632,11 @@ Valid JSON printed.
 
 Checklist:
 
-- [ ] JSON output implemented
+- [x] JSON output implemented
 
-- [ ] Pretty JSON
+- [x] Pretty JSON
 
-- [ ] No terminal report when `--json` true
+- [x] No terminal report when `--json` true
 
 ## Phase 8 — Examples and README
 
@@ -660,15 +660,15 @@ Each file can be scanned without error.
 
 Checklist:
 
-- [ ] duplicate_aggregation.sql
+- [x] duplicate_aggregation.sql
 
-- [ ] linked_server.sql
+- [x] linked_server.sql
 
-- [ ] update_without_where.sql
+- [x] update_without_where.sql
 
-- [ ] dynamic_sql.sql
+- [x] dynamic_sql.sql
 
-- [ ] select_star_nolock.sql
+- [x] select_star_nolock.sql
 
 ### Task 8.2 — Add README
 
@@ -699,15 +699,15 @@ README explains:
 
 Checklist:
 
-- [ ] README created
+- [x] README created
 
-- [ ] Install section
+- [x] Install section
 
-- [ ] Usage section
+- [x] Usage section
 
-- [ ] Demo section
+- [x] Demo section
 
-- [ ] Limitations section
+- [x] Limitations section
 
 ## Phase 9 — Final Validation
 
@@ -737,23 +737,23 @@ Acceptance:
 
 Checklist:
 
-- [ ] cargo fmt
+- [x] cargo fmt
 
-- [ ] cargo check
+- [x] cargo check
 
-- [ ] cargo test
+- [x] cargo test
 
-- [ ] all examples scan
+- [x] all examples scan
 
-- [ ] markdown generated
+- [x] markdown generated
 
-- [ ] json generated
+- [x] json generated
 
 ## Phase 10 — Optional Polish After MVP Works
 
 Do only after v0.1 works.
 
-- [ ] Add colored severity in terminal.
+- [x] Add colored severity in terminal.
 
 - [x] Add `--diagram mermaid` to write `.mmd` separately.
 
@@ -761,9 +761,9 @@ Do only after v0.1 works.
 
 - [x] Add `sptrace context`.
 
-- [ ] Add config file.
+- [x] Add config file.
 
-- [ ] Add GitHub Actions CI.
+- [x] Add GitHub Actions CI.
 
 - [ ] Add release binaries.
 
