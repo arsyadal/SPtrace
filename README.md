@@ -41,9 +41,15 @@ SPTrace helps you answer:
 
 ## Install
 
+### From source
+
 ```bash
 cargo build
 ```
+
+### Releases
+
+Prebuilt binaries are published on GitHub Releases for tagged versions.
 
 ## Usage
 

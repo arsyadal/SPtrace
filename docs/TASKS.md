@@ -765,7 +765,7 @@ Do only after v0.1 works.
 
 - [x] Add GitHub Actions CI.
 
-- [ ] Add release binaries.
+- [x] Add release binaries.
 
 ## Notes for Cheap Model Execution
 
